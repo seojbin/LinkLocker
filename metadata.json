@@ -1,0 +1,6 @@
+{
+  "name": "LinkLocker",
+  "description": "캠퍼스 분실물 보관 및 비대면 안심 수령 플랫폼 (Campus Lost & Found Platform)",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
