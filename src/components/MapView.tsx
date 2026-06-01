@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Search, SlidersHorizontal, MapPin, CircleHelp, ShieldAlert, Plus, ShieldCheck } from 'lucide-react';
 import { LostItem } from '../types';
+import L from 'leaflet';
 
 interface MapViewProps {
   items: LostItem[];
@@ -16,6 +17,10 @@ interface MapViewProps {
 export function MapView({ items, onSelectItem, onOpenReportForm }: MapViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedLocker, setSelectedLocker] = useState<string | null>(null);
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
   // Derive counts dynamically
   const lockerACount = items.filter(item => item.lockerName === 'Locker A' && item.status === 'available').length;
@@ -32,6 +37,136 @@ export function MapView({ items, onSelectItem, onOpenReportForm }: MapViewProps)
     return matchesSearch && matchesLocker;
   });
 
+  // Setup Leaflet Map
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Initialize map centering on Hanyang University ERICA campus
+    if (!mapRef.current) {
+      const mapInstance = L.map(containerRef.current, {
+        center: [37.2982, 126.8335],
+        zoom: 17,
+        zoomControl: false,
+      });
+
+      // CartoDB Voyager Map Tiles (Cream-colored premium visual scheme)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      }).addTo(mapInstance);
+
+      mapRef.current = mapInstance;
+    }
+
+    const map = mapRef.current;
+
+    // Reset markers layer group
+    if (!markersLayerRef.current) {
+      markersLayerRef.current = L.layerGroup().addTo(map);
+    } else {
+      markersLayerRef.current.clearLayers();
+    }
+
+    const markersGroup = markersLayerRef.current;
+
+    // Pin 1: Locker A
+    const isLockerASelected = selectedLocker === 'Locker A';
+    const iconA = L.divIcon({
+      html: `
+        <div class="flex flex-col items-center select-none active:scale-95 transition-all duration-200">
+          <div class="px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border-2 whitespace-nowrap transition-colors duration-200 ${
+            isLockerASelected 
+              ? 'bg-[#4d157a] text-[#F9F4E3] border-[#c5a043] scale-110 font-bold ring-4 ring-[#4d157a]/25' 
+              : 'bg-white text-[#4d157a] border-[#c5a043] font-bold hover:border-[#4d157a]'
+          }">
+            <span class="text-xs leading-none">📍 보관함 A (${lockerACount}개)</span>
+          </div>
+          <div class="w-[3px] h-2.5 ${isLockerASelected ? 'bg-[#c5a043]' : 'bg-[#c5a043]/60'}"></div>
+        </div>
+      `,
+      className: '',
+      iconSize: [120, 42],
+      iconAnchor: [60, 42]
+    });
+
+    const markerA = L.marker([37.2982, 126.8335], { icon: iconA }).addTo(markersGroup);
+    markerA.on('click', () => {
+      setSelectedLocker(prev => prev === 'Locker A' ? null : 'Locker A');
+    });
+
+    // Pin 2: Locker B
+    const isLockerBSelected = selectedLocker === 'Locker B';
+    const iconB = L.divIcon({
+      html: `
+        <div class="flex flex-col items-center select-none active:scale-95 transition-all duration-200">
+          <div class="px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border-2 whitespace-nowrap transition-colors duration-200 ${
+            isLockerBSelected 
+              ? 'bg-[#4d157a] text-[#F9F4E3] border-[#c5a043] scale-110 font-bold ring-4 ring-[#4d157a]/25' 
+              : 'bg-white text-[#4d157a] border-[#c5a043] font-bold hover:border-[#4d157a]'
+          }">
+            <span class="text-xs leading-none">📍 보관함 B (${lockerBCount}개)</span>
+          </div>
+          <div class="w-[3px] h-2.5 ${isLockerBSelected ? 'bg-[#c5a043]' : 'bg-[#c5a043]/60'}"></div>
+        </div>
+      `,
+      className: '',
+      iconSize: [120, 42],
+      iconAnchor: [60, 42]
+    });
+
+    const markerB = L.marker([37.2968, 126.8315], { icon: iconB }).addTo(markersGroup);
+    markerB.on('click', () => {
+      setSelectedLocker(prev => prev === 'Locker B' ? null : 'Locker B');
+    });
+
+    // Pin 3: Main Office
+    const isMainOfficeSelected = selectedLocker === 'Main Office';
+    const iconOffice = L.divIcon({
+      html: `
+        <div class="flex flex-col items-center select-none active:scale-95 transition-all duration-200">
+          <div class="px-3.5 py-1.5 rounded-full shadow-lg flex items-center gap-1.5 border-2 whitespace-nowrap transition-colors duration-200 ${
+            isMainOfficeSelected 
+              ? 'bg-[#8c6a1c] text-white border-[#F9F4E3] scale-110 font-bold ring-4 ring-[#8c6a1c]/25' 
+              : 'bg-white text-[#8c6a1c] border-[#8c6a1c]/50 font-bold hover:border-[#8c6a1c]'
+          }">
+            <span class="text-xs leading-none">🏢 대학행정관 (${mainOfficeCount}개)</span>
+          </div>
+          <div class="w-[3px] h-2.5 ${isMainOfficeSelected ? 'bg-[#8c6a1c]' : 'bg-[#8c6a1c]/60'}"></div>
+        </div>
+      `,
+      className: '',
+      iconSize: [120, 42],
+      iconAnchor: [60, 42]
+    });
+
+    const markerOffice = L.marker([37.2995, 126.8309], { icon: iconOffice }).addTo(markersGroup);
+    markerOffice.on('click', () => {
+      setSelectedLocker(prev => prev === 'Main Office' ? null : 'Main Office');
+    });
+
+    // Animate view camera based on user choice
+    if (selectedLocker === 'Locker A') {
+      map.setView([37.2982, 126.8335], 17.5, { animate: true });
+    } else if (selectedLocker === 'Locker B') {
+      map.setView([37.2968, 126.8315], 17.5, { animate: true });
+    } else if (selectedLocker === 'Main Office') {
+      map.setView([37.2995, 126.8309], 17.5, { animate: true });
+    } else {
+      map.setView([37.2982, 126.8335], 17, { animate: true });
+    }
+
+  }, [selectedLocker, lockerACount, lockerBCount, mainOfficeCount]);
+
+  // Clean-up on unmount
+  useEffect(() => {
+    return () => {
+      if (mapRef.current) {
+        mapRef.current.remove();
+        mapRef.current = null;
+        markersLayerRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <div className="relative flex-1 w-full h-[calc(100vh-130px)] overflow-hidden bg-brand-bg/60">
       
@@ -41,7 +176,7 @@ export function MapView({ items, onSelectItem, onOpenReportForm }: MapViewProps)
           <Search className="w-5 h-5 text-brand-gold-dark mr-2.5 flex-shrink-0" />
           <input 
             type="text" 
-            placeholder="에타에서 헤매지 마세요! 물건 찾기..." 
+            placeholder="에타에서 헤매지 마세요! 보관 물품 찾기..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full bg-transparent border-0 text-sm focus:outline-hidden font-sans placeholder-gray-400 text-gray-800"
@@ -57,135 +192,9 @@ export function MapView({ items, onSelectItem, onOpenReportForm }: MapViewProps)
         </form>
       </div>
 
-      {/* STYLIZED 2D CAMPUS VECTOR MAP - PARCHMENT STYLE */}
-      <div className="absolute inset-0 select-none">
-        <svg 
-          viewBox="0 0 1000 800" 
-          className="w-full h-full object-cover min-w-[700px] opacity-95"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* Parchment Antique Gold Background */}
-          <rect width="1000" height="800" fill="#FCFAF5" />
-          
-          {/* Water features / Lake (Classic Royal Blue-Grey) */}
-          <path d="M -50 400 Q 150 300 250 500 T 500 450 T 800 650 T 1050 600 L 1050 900 L -50 900 Z" fill="#EBF3F6" opacity="0.8" />
-          <path d="M -50 400 Q 150 300 250 500 T 500 450 T 800 650 T 1050 600" stroke="#CADDE6" strokeWidth="6" fill="none" opacity="0.6" />
-          
-          {/* Campus Historic Paths (Warm Stone/Sepia Road Lines) */}
-          <path d="M 0 100 L 1000 250 M 500 0 L 500 800 M 150 800 L 800 0 M 0 600 C 300 600, 700 400, 1000 600" stroke="#F1ECE1" strokeWidth="24" strokeLinecap="round" fill="none" />
-          <path d="M 0 100 L 1000 250 M 500 0 L 500 800 M 150 800 L 800 0 M 0 600 C 300 600, 700 400, 1000 600" stroke="#E6DECE" strokeWidth="18" strokeLinecap="round" fill="none" />
-
-          {/* Central Lake Circle (Sa-La-Mot lake landmark with gold trim) */}
-          <circle cx="500" cy="400" r="90" fill="#CADDE6" stroke="#c5a043" strokeWidth="4" opacity="0.8"/>
-          <circle cx="500" cy="400" r="78" fill="#DCE9EE" opacity="0.9"/>
-          
-          {/* Garamond serif lettering */}
-          <text x="500" y="405" textAnchor="middle" fill="#2E1150" fontSize="15" fontWeight="bold" fontFamily="Cormorant Garamond, Georgia, serif" fontStyle="italic">
-            사자목 호수 (Sa-La-Mot)
-          </text>
-
-          {/* Campus Buildings Visual Blocks - Royal Burgundy-Purple Trim with Gold Labels */}
-          {/* 1. Academic Library (Locker A Area) */}
-          <g transform="translate(170, 190)">
-            {/* Outer traditional shadows */}
-            <rect x="2" y="2" width="200" height="120" rx="4" fill="#8c6a1c" opacity="0.15" />
-            <rect width="200" height="120" rx="4" fill="white" stroke="#c5a043" strokeWidth="2.5" />
-            <rect x="6" y="6" width="188" height="108" rx="2" fill="#FBF9F4" stroke="#4d157a" strokeWidth="1" />
-            <text x="100" y="55" textAnchor="middle" fill="#4d157a" fontSize="18" fontWeight="bold" fontFamily="Cormorant Garamond, Georgia, serif">중앙도서관</text>
-            <text x="100" y="80" textAnchor="middle" fill="#8c6a1c" fontSize="12" fontWeight="bold" fontFamily="system-ui">Locker A Hub</text>
-          </g>
-
-          {/* 2. Student Union Building (Locker B Area) */}
-          <g transform="translate(560, 360)">
-            <rect x="2" y="2" width="200" height="120" rx="4" fill="#8c6a1c" opacity="0.15" />
-            <rect width="200" height="120" rx="4" fill="white" stroke="#c5a043" strokeWidth="2.5" />
-            <rect x="6" y="6" width="188" height="108" rx="2" fill="#FBF9F4" stroke="#4d157a" strokeWidth="1" />
-            <text x="100" y="55" textAnchor="middle" fill="#4d157a" fontSize="18" fontWeight="bold" fontFamily="Cormorant Garamond, Georgia, serif">학생회관</text>
-            <text x="100" y="80" textAnchor="middle" fill="#8c6a1c" fontSize="12" fontWeight="bold" fontFamily="system-ui">Locker B Hub</text>
-          </g>
-
-          {/* 3. Main Administration Office Area */}
-          <g transform="translate(360, 60)">
-            <rect x="2" y="2" width="180" height="98" rx="4" fill="#8c6a1c" opacity="0.15" />
-            <rect width="180" height="98" rx="4" fill="white" stroke="#c5a043" strokeWidth="2.5" />
-            <rect x="5" y="5" width="170" height="88" rx="2" fill="#FAF1D8" stroke="#8c6a1c" strokeWidth="1" />
-            <text x="90" y="46" textAnchor="middle" fill="#8c6a1c" fontSize="16" fontWeight="bold" fontFamily="Cormorant Garamond, Georgia, serif">본관 행정지원팀</text>
-            <text x="90" y="68" textAnchor="middle" fill="#4d157a" fontSize="11" fontWeight="bold" fontFamily="system-ui">Main Office Hub</text>
-          </g>
-
-          {/* 4. Engineering Building */}
-          <g transform="translate(680, 120)">
-            <rect width="150" height="90" rx="4" fill="white" stroke="#E6DECE" strokeWidth="1.5" opacity="0.9" />
-            <text x="75" y="50" textAnchor="middle" fill="#8c6a1c" fontSize="14" fontWeight="bold" fontFamily="Cormorant Garamond, Georgia, serif" fontStyle="italic">제1공학관</text>
-          </g>
-
-          {/* 5. Gymnasium Gym */}
-          <g transform="translate(120, 540)">
-            <rect width="140" height="80" rx="4" fill="white" stroke="#E6DECE" strokeWidth="1.5" opacity="0.9" />
-            <text x="70" y="45" textAnchor="middle" fill="#8c6a1c" fontSize="14" fontWeight="bold" fontFamily="Cormorant Garamond, Georgia, serif" fontStyle="italic">체육관</text>
-          </g>
-        </svg>
-      </div>
-
-      {/* DYNAMIC MAP PINS - OVERLAID ABSOLUTELY with elegant college seals */}
-      {/* Pin 1: Locker A */}
-      <div 
-        onClick={() => setSelectedLocker(selectedLocker === 'Locker A' ? null : 'Locker A')}
-        className={`absolute top-[32%] left-[28%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20 group transition-all duration-300 ${
-          selectedLocker === 'Locker A' ? 'scale-110' : 'hover:scale-105'
-        }`}
-      >
-        <div className="flex flex-col items-center">
-          <div className={`px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border-2 transition-colors ${
-            selectedLocker === 'Locker A' 
-              ? 'bg-brand-purple text-brand-gold-light border-brand-gold' 
-              : 'bg-white text-brand-purple border-brand-gold'
-          }`}>
-            <MapPin className="w-4 h-4 fill-current text-brand-gold stroke-[2.5]" />
-            <span className="text-xs font-mono font-bold">Locker A ({lockerACount})</span>
-          </div>
-          <div className={`w-[3px] h-3 shadow-xs ${selectedLocker === 'Locker A' ? 'bg-brand-gold' : 'bg-brand-gold/60'}`}></div>
-        </div>
-      </div>
-
-      {/* Pin 2: Locker B */}
-      <div 
-        onClick={() => setSelectedLocker(selectedLocker === 'Locker B' ? null : 'Locker B')}
-        className={`absolute top-[52%] left-[68%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20 group transition-all duration-300 ${
-          selectedLocker === 'Locker B' ? 'scale-110' : 'hover:scale-105'
-        }`}
-      >
-        <div className="flex flex-col items-center">
-          <div className={`px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border-2 transition-colors ${
-            selectedLocker === 'Locker B' 
-              ? 'bg-brand-purple text-brand-gold-light border-brand-gold' 
-              : 'bg-white text-brand-purple border-brand-gold'
-          }`}>
-            <MapPin className="w-4 h-4 fill-current text-brand-gold stroke-[2.5]" />
-            <span className="text-xs font-mono font-bold">Locker B ({lockerBCount})</span>
-          </div>
-          <div className={`w-[3px] h-3 shadow-xs ${selectedLocker === 'Locker B' ? 'bg-brand-gold' : 'bg-brand-gold/60'}`}></div>
-        </div>
-      </div>
-
-      {/* Pin 3: Main Office (unverified locker hub) */}
-      <div 
-        onClick={() => setSelectedLocker(selectedLocker === 'Main Office' ? null : 'Main Office')}
-        className={`absolute top-[16%] left-[44%] -translate-x-1/2 -translate-y-1/2 cursor-pointer z-20 group transition-all duration-300 ${
-          selectedLocker === 'Main Office' ? 'scale-110' : 'hover:scale-105'
-        }`}
-      >
-        <div className="flex flex-col items-center">
-          <div className={`px-4 py-2 rounded-full shadow-lg flex items-center gap-1.5 border-2 transition-colors ${
-            selectedLocker === 'Main Office' 
-              ? 'bg-brand-gold-dark text-white border-brand-gold-light' 
-              : 'bg-white text-brand-gold-dark border-brand-gold/50'
-          }`}>
-            <CircleHelp className="w-4 h-4 stroke-[2.5]" />
-            <span className="text-xs font-mono font-bold">Main Office ({mainOfficeCount})</span>
-          </div>
-          <div className={`w-[3px] h-3 ${selectedLocker === 'Main Office' ? 'bg-brand-gold-dark' : 'bg-brand-gold-dark/60'}`}></div>
-        </div>
+      {/* REAL CAMPUS MAP CONTAINER */}
+      <div className="absolute inset-0 w-full h-full">
+        <div ref={containerRef} className="w-full h-full" style={{ zIndex: 1 }} />
       </div>
 
       {/* SLIDING RECENTS SHEET (COLLAPSIBLE / LIST PANEL) */}
@@ -200,12 +209,12 @@ export function MapView({ items, onSelectItem, onOpenReportForm }: MapViewProps)
         <div className="px-4 py-3 flex justify-between items-end border-b border-brand-gold/10 flex-shrink-0 bg-brand-gold-light/20">
           <div>
             <h2 className="text-base font-display font-bold text-brand-purple">
-              {selectedLocker ? `📍 [${selectedLocker}] 보관 물품` : '최근 습득물'}
+              {selectedLocker ? `📍 [${selectedLocker}] 보관 물품` : '최근 습득한 보관품'}
             </h2>
             <p className="text-[10px] font-medium text-brand-gold-dark">
               {selectedLocker 
-                ? `${selectedLocker} 에 보관되어 있는 고결성 검증 완료 스마트 보관 물품입니다.` 
-                : '캠퍼스 내 공인 수령 채널 · 신속한 분실물 안심 복구'}
+                ? `${selectedLocker}에 보관 장기 안전 인계 대기 중인 습득 자산입니다.` 
+                : '한양 ERICA 캠퍼스 전용 스마트 보관함 · 맡겨놓은 물품 수령처'}
             </p>
           </div>
 
@@ -223,7 +232,7 @@ export function MapView({ items, onSelectItem, onOpenReportForm }: MapViewProps)
         <div className="overflow-y-auto p-3 bg-brand-bg/30 flex-1 space-y-2 max-h-[190px]">
           {filteredItems.length === 0 ? (
             <div className="py-8 text-center text-gray-400 text-xs font-sans">
-              조건에 맞는 스마트 공인보관 물품이 존재하지 않습니다.
+              조건에 맞는 안심 보관함 보관 물품이 존재하지 않습니다.
             </div>
           ) : (
             filteredItems.map((item) => (
@@ -271,10 +280,11 @@ export function MapView({ items, onSelectItem, onOpenReportForm }: MapViewProps)
       <button 
         onClick={onOpenReportForm}
         className="fixed bottom-[74px] right-4 z-30 bg-gradient-to-r from-brand-purple via-brand-purple-dark to-brand-purple text-brand-gold-light p-3.5 rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-1.5 border-2 border-brand-gold"
-        title="새로운 분실물 신고등록"
+        title="보관할 습득물 등록하기"
+        style={{ zIndex: 10 }}
       >
         <Plus className="w-5 h-5 text-brand-gold animate-bounce" strokeWidth={2.5} />
-        <span className="text-xs font-display font-bold tracking-wider pr-1">분실물 기증/신고</span>
+        <span className="text-xs font-display font-bold tracking-wider pr-1">습득물 보관함에 맡기기</span>
       </button>
 
     </div>

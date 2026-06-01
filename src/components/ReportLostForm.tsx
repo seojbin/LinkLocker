@@ -87,7 +87,7 @@ export function ReportLostForm({ onClose, onAdd }: ReportLostFormProps) {
         <div className="flex justify-between items-center px-5 py-4 border-b border-brand-gold/20 bg-brand-gold-light/40">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-gold animate-ping"></span>
-            <h3 className="font-display font-bold text-brand-purple text-lg italic">기증 및 수거품 서약등록</h3>
+            <h3 className="font-display font-bold text-brand-purple text-lg italic">습득물 안심 보관·맡기기 등록</h3>
           </div>
           <button 
             type="button"
@@ -247,7 +247,7 @@ export function ReportLostForm({ onClose, onAdd }: ReportLostFormProps) {
             className="w-full bg-brand-purple text-brand-gold-light border border-brand-gold font-display font-bold text-sm uppercase py-3.5 rounded-xl hover:bg-brand-purple-dark transition shadow-md flex items-center justify-center gap-1.5 active:scale-[0.98]"
           >
             <Plus className="w-4 h-4 text-brand-gold" />
-            자산 원장에 보관 기증 완료
+            안심 보관함에 맡기기 완료
           </button>
 
         </form>
